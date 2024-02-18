@@ -138,7 +138,8 @@ found:
     release(&p->lock);
     return 0;
   }
-
+  
+  // create the usyscall struct and copy it to the usyscall physical memory location
   struct usyscall sc = { .pid = p->pid };
   memset(p->usyscall, 0, PGSIZE);
   memmove(p->usyscall, (void *)&sc, sizeof(sc));
@@ -218,6 +219,7 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // map the USYSCALL page
   if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)p->usyscall, PTE_R|PTE_U) < 0) {
     uvmunmap(pagetable, TRAPFRAME, 1, 0);
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
