@@ -449,3 +449,37 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+// print a pagetable based on it's level and recursively print child pages
+void
+print_table(pagetable_t pagetable, int level)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte & PTE_V) {
+      uint64 child = PTE2PA(pte);
+      // print this pte
+	  if (level == 1)
+	  	printf("..");
+	  else if (level == 2)
+	  	printf(".. ..");
+	  else
+	  	printf(".. .. ..");
+
+	  printf("%d: pte %p pa %p\n", i, pte, child);
+
+	  // if not at lowest level, recursively print sub child
+	  if (level != 3)
+	  	print_table((pagetable_t)child, level + 1);
+    }
+  }
+}
+
+// print the page table
+void
+vmprint(pagetable_t pagetable)
+{
+	printf("page table %p\n", pagetable);
+
+	print_table(pagetable, 1);
+}
