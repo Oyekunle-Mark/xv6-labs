@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sysinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -328,6 +329,9 @@ fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+
+  // copy the trace mask from parent to child.
+  np->trace_mask = p->trace_mask;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -712,4 +716,39 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+/**
+ * return the count of processes whose state is not UNUSED
+ * in the process table
+*/
+int
+get_process_count()
+{
+  struct proc *p;
+  int count = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->state != UNUSED)
+      count++;
+  }
+
+  return count;
+}
+
+int get_free_mem();
+
+int
+sysinfo(uint64 addr)
+{
+  struct proc *p = myproc();
+  struct sysinfo si;
+
+  si.nproc = get_process_count();
+  si.freemem = get_free_mem();
+
+  if(copyout(p->pagetable, addr, (char *)&si, sizeof(si)) < 0)
+    return -1;
+
+  return 0;
 }
