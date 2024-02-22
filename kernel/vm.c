@@ -5,6 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -482,4 +484,26 @@ vmprint(pagetable_t pagetable)
 	printf("page table %p\n", pagetable);
 
 	print_table(pagetable, 1);
+}
+
+
+int
+pgaccess(uint64 base, int len, uint64 mask)
+{
+	unsigned int temp_bits;
+	pagetable_t pg = myproc()->pagetable;
+
+	for (int i = 0; i < len; i++) {
+		pte_t *entry = walk(pg, base + PGSIZE * i, 0);
+
+		if (*entry & PTE_A) {
+			temp_bits |= (1 << i);
+			*entry &= ~PTE_A; // clear the access bit
+		}
+	}
+
+	if (copyout(pg, mask, (char *) &temp_bits, sizeof(temp_bits)) < 0)
+		return -1;
+
+	return 0;
 }
