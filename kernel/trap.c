@@ -77,8 +77,18 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+	if (p->alarm_registered == 1) {
+	  p->tick_left -= 1;
+
+	  if (p->tick_left == 0) {
+	    p->trapframe->epc = (uint64)p->alarm_handler; // set pc to address of alarm handler when risc returns to user space
+		p->tick_left = p->alarm_interval; // reset ticks to interval
+	  }
+	}
+
     yield();
+  }
 
   usertrapret();
 }
@@ -218,4 +228,4 @@ devintr()
     return 0;
   }
 }
-
+ 

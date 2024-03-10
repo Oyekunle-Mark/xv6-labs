@@ -94,3 +94,27 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_sigreturn(void)
+{
+	return 0;
+}
+
+uint64
+sys_sigalarm()
+{
+	int interval;
+	uint64 handler_ptr;
+
+	argint(0, &interval);
+	argaddr(1, &handler_ptr);
+
+	struct proc *p = myproc();
+	p->alarm_interval = interval;
+	p->alarm_handler = (void (*)())handler_ptr;
+	p->alarm_registered = 1; // turn on alarming
+	p->tick_left = interval; // set the tick left to the number of ticks configured
+
+	return 0;
+}

@@ -250,6 +250,12 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  
+  // initialize alarm fields
+  p->alarm_registered = 0;
+  p->alarm_interval = 0;
+  p->tick_left = 0;
+  p->alarm_handler = 0;
 
   release(&p->lock);
 }
