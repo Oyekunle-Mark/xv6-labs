@@ -8,5 +8,4 @@ At what address is the function printf located?
 630
 
 What value is in the register ra just after the jalr to printf in main?
-0
-
+PC-relative 0 + 1536
