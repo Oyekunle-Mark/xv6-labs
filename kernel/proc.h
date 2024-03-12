@@ -100,6 +100,7 @@ struct proc {
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
+  struct usyscall *usyscall;   // hold the usyscall struct
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
@@ -110,4 +111,5 @@ struct proc {
   void (*alarm_handler)();	   // pointer to alarm handler function
   struct trapframe *temp_trapframe; // copy of the trapframe for when entering alarm handler
   int handler_lock; // lock the alarm handler to prevent re-entract
+  int trace_mask; 			   // the trace mask
 };

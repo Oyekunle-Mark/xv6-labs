@@ -38,3 +38,7 @@ entry("sleep");
 entry("uptime");
 entry("sigalarm");
 entry("sigreturn");
+entry("connect");
+entry("pgaccess");
+entry("trace");
+entry("sysinfo");

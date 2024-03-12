@@ -1,7 +1,7 @@
 #include "types.h"
 #include "riscv.h"
-#include "defs.h"
 #include "param.h"
+#include "defs.h"
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
@@ -54,9 +54,8 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
+
   argint(0, &n);
-  if(n < 0)
-    n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
@@ -72,6 +71,23 @@ sys_sleep(void)
 
   return 0;
 }
+
+
+#ifdef LAB_PGTBL
+int
+sys_pgaccess(void)
+{
+  // lab pgtbl: your code here.
+  uint64 va, mask;
+  int len;
+
+  argint(1, &len);
+  argaddr(0, &va);
+  argaddr(2, &mask);
+
+  return pgaccess(va, len, mask);
+}
+#endif
 
 uint64
 sys_kill(void)
@@ -105,6 +121,16 @@ sys_sigreturn(void)
 	p->handler_lock = 0; // unlock alarm hanlding
 	usertrapret(); // call usertrapret to restore registers immediatel because a return here will modify a0
 
+  return 0;
+}
+
+sys_trace(void)
+{
+	int trace_mask;
+	argint(0, &trace_mask);
+
+	myproc()->trace_mask = trace_mask;
+
 	return 0;
 }
 
@@ -129,4 +155,16 @@ sys_sigalarm()
 	}
 
 	return 0;
+}
+
+int sysinfo(uint64);
+
+uint64
+sys_sysinfo(void)
+{
+	uint64 si;
+
+	argaddr(0, &si);
+
+	return sysinfo(si);
 }

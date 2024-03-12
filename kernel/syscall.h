@@ -20,5 +20,16 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+
+// System calls for labs
 #define SYS_sigalarm 22
 #define SYS_sigreturn 23
+#define SYS_trace     24
+#define SYS_sysinfo   25
+#define SYS_sigalarm  26
+#define SYS_sigreturn 27
+#define SYS_symlink   28
+#define SYS_mmap      29
+#define SYS_munmap    30
+#define SYS_connect   31
+#define SYS_pgaccess  32
