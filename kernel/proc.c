@@ -126,11 +126,10 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
-  // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
-    freeproc(p);
+  // Allocate a trapframe and temp trapgrame pages.
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0 || (p->temp_trapframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
-    return 0;
+	  return 0;
   }
 
   // Allocate a usyscall page.
@@ -159,6 +158,13 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // initialize alarm fields
+  p->alarm_registered = 0;
+  p->alarm_interval = 0;
+  p->tick_left = 0;
+  p->alarm_handler = 0;
+  p->handler_lock = 0;
+
   return p;
 }
 
@@ -170,6 +176,9 @@ freeproc(struct proc *p)
 {
   if(p->trapframe)
     kfree((void*)p->trapframe);
+  // free temporary trapframe
+  if(p->temp_trapframe)
+    kfree((void*)p->temp_trapframe);
   p->trapframe = 0;
 
   if(p->usyscall)
@@ -278,7 +287,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
+  
   release(&p->lock);
 }
 

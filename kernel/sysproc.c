@@ -66,6 +66,9 @@ sys_sleep(void)
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
+
+  backtrace(); // call backtrace here
+
   return 0;
 }
 
@@ -109,12 +112,47 @@ sys_uptime(void)
 }
 
 uint64
+sys_sigreturn(void)
+{
+	// restore registers saved in usertrap
+	struct proc *p = myproc();
+	*(p->trapframe) = *(p->temp_trapframe);
+
+	p->handler_lock = 0; // unlock alarm hanlding
+	usertrapret(); // call usertrapret to restore registers immediatel because a return here will modify a0
+
+  return 0;
+}
+
 sys_trace(void)
 {
 	int trace_mask;
 	argint(0, &trace_mask);
 
 	myproc()->trace_mask = trace_mask;
+
+	return 0;
+}
+
+uint64
+sys_sigalarm()
+{
+	int interval;
+	uint64 handler_ptr;
+
+	argint(0, &interval);
+	argaddr(1, &handler_ptr);
+
+	struct proc *p = myproc();
+
+	if (interval == 0 && handler_ptr == 0) {
+		p->alarm_registered = 0; // disable alarming
+	} else {
+		p->alarm_interval = interval;
+		p->alarm_handler = (void (*)())handler_ptr;
+		p->alarm_registered = 1; // turn on alarming
+		p->tick_left = interval; // set the tick left to the number of ticks configured
+	}
 
 	return 0;
 }
