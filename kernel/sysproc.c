@@ -98,6 +98,13 @@ sys_uptime(void)
 uint64
 sys_sigreturn(void)
 {
+	// restore registers saved in usertrap
+	struct proc *p = myproc();
+	*(p->trapframe) = *(p->temp_trapframe);
+
+	p->handler_lock = 0; // unlock alarm hanlding
+	usertrapret(); // call usertrapret to restore registers immediatel because a return here will modify a0
+
 	return 0;
 }
 
@@ -111,10 +118,15 @@ sys_sigalarm()
 	argaddr(1, &handler_ptr);
 
 	struct proc *p = myproc();
-	p->alarm_interval = interval;
-	p->alarm_handler = (void (*)())handler_ptr;
-	p->alarm_registered = 1; // turn on alarming
-	p->tick_left = interval; // set the tick left to the number of ticks configured
+
+	if (interval == 0 && handler_ptr == 0) {
+		p->alarm_registered = 0; // disable alarming
+	} else {
+		p->alarm_interval = interval;
+		p->alarm_handler = (void (*)())handler_ptr;
+		p->alarm_registered = 1; // turn on alarming
+		p->tick_left = interval; // set the tick left to the number of ticks configured
+	}
 
 	return 0;
 }

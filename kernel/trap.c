@@ -81,9 +81,13 @@ usertrap(void)
 	if (p->alarm_registered == 1) {
 	  p->tick_left -= 1;
 
-	  if (p->tick_left == 0) {
-	    p->trapframe->epc = (uint64)p->alarm_handler; // set pc to address of alarm handler when risc returns to user space
-		p->tick_left = p->alarm_interval; // reset ticks to interval
+	  // interval has expired and handler isn't locked
+	  if (p->tick_left == 0 && p->handler_lock == 0) {
+      p->tick_left = p->alarm_interval; // reset ticks to interval
+      p->handler_lock = 1; // lock the handler
+
+      *(p->temp_trapframe) = *(p->trapframe); // save the trapframe to restore it in sigreturn
+	    p->trapframe->epc = (uint64)p->alarm_handler; // set pc to address of alarm handler for risc to return to it
 	  }
 	}
 

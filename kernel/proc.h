@@ -108,4 +108,6 @@ struct proc {
   int alarm_interval;		   // the alarm interval
   int tick_left; 			   // the number of ticks left in alarm_interval before calling alarm_handler
   void (*alarm_handler)();	   // pointer to alarm handler function
+  struct trapframe *temp_trapframe; // copy of the trapframe for when entering alarm handler
+  int handler_lock; // lock the alarm handler to prevent re-entract
 };
