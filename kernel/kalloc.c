@@ -150,3 +150,20 @@ kalloc(void)
   }
   return (void*)r;
 }
+
+/**
+ * Returns the number of free memory in byte
+*/
+int
+get_free_mem()
+{
+  int count = 0;
+  struct run* current = kmem.freelist;
+
+  while (current) {
+    count++;
+    current = current->next;
+  }
+
+  return count * PGSIZE;
+}

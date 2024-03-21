@@ -85,8 +85,22 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+	if (p->alarm_registered == 1) {
+	  p->tick_left -= 1;
+
+	  // interval has expired and handler isn't locked
+	  if (p->tick_left == 0 && p->handler_lock == 0) {
+      p->tick_left = p->alarm_interval; // reset ticks to interval
+      p->handler_lock = 1; // lock the handler
+
+      *(p->temp_trapframe) = *(p->trapframe); // save the trapframe to restore it in sigreturn
+	    p->trapframe->epc = (uint64)p->alarm_handler; // set pc to address of alarm handler for risc to return to it
+	  }
+	}
+
     yield();
+  }
 
   usertrapret();
 }
@@ -226,7 +240,6 @@ devintr()
     return 0;
   }
 }
-
 
 int
 page_fault_handler(pagetable_t pagetable, uint64 va)
