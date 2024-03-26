@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sysinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -125,12 +126,23 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
-  // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+  // Allocate a trapframe and temp trapgrame pages.
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0 || (p->temp_trapframe = (struct trapframe *)kalloc()) == 0){
+    release(&p->lock);
+	  return 0;
+  }
+
+  // Allocate a usyscall page.
+  if((p->usyscall = (struct usyscall *)kalloc()) == 0){
     freeproc(p);
     release(&p->lock);
     return 0;
   }
+  
+  // create the usyscall struct and copy it to the usyscall physical memory location
+  struct usyscall sc = { .pid = p->pid };
+  memset(p->usyscall, 0, PGSIZE);
+  memmove(p->usyscall, (void *)&sc, sizeof(sc));
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -146,6 +158,13 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // initialize alarm fields
+  p->alarm_registered = 0;
+  p->alarm_interval = 0;
+  p->tick_left = 0;
+  p->alarm_handler = 0;
+  p->handler_lock = 0;
+
   return p;
 }
 
@@ -157,7 +176,15 @@ freeproc(struct proc *p)
 {
   if(p->trapframe)
     kfree((void*)p->trapframe);
+  // free temporary trapframe
+  if(p->temp_trapframe)
+    kfree((void*)p->temp_trapframe);
   p->trapframe = 0;
+
+  if(p->usyscall)
+    kfree((void*)p->usyscall);
+  p->usyscall = 0;
+
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -202,6 +229,15 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // map the USYSCALL page
+  if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)p->usyscall, PTE_R|PTE_U) < 0) {
+    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+
+
   return pagetable;
 }
 
@@ -212,6 +248,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  uvmunmap(pagetable, USYSCALL, 1, 0);
   uvmfree(pagetable, sz);
 }
 
@@ -250,7 +287,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
+  
   release(&p->lock);
 }
 
@@ -301,6 +338,9 @@ fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+
+  // copy the trace mask from parent to child.
+  np->trace_mask = p->trace_mask;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -685,4 +725,39 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+/**
+ * return the count of processes whose state is not UNUSED
+ * in the process table
+*/
+int
+get_process_count()
+{
+  struct proc *p;
+  int count = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->state != UNUSED)
+      count++;
+  }
+
+  return count;
+}
+
+int get_free_mem();
+
+int
+sysinfo(uint64 addr)
+{
+  struct proc *p = myproc();
+  struct sysinfo si;
+
+  si.nproc = get_process_count();
+  si.freemem = get_free_mem();
+
+  if(copyout(p->pagetable, addr, (char *)&si, sizeof(si)) < 0)
+    return -1;
+
+  return 0;
 }

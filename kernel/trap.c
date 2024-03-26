@@ -68,17 +68,39 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+    if (r_scause() == 15)
+    {
+      uint64 va = r_stval();
+
+      if (page_fault_handler(p->pagetable, va) != 0)
+        p->killed = 1;
+    }
+    else
+    {
+      p->killed = 1;
+    }
   }
 
   if(killed(p))
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+	if (p->alarm_registered == 1) {
+	  p->tick_left -= 1;
+
+	  // interval has expired and handler isn't locked
+	  if (p->tick_left == 0 && p->handler_lock == 0) {
+      p->tick_left = p->alarm_interval; // reset ticks to interval
+      p->handler_lock = 1; // lock the handler
+
+      *(p->temp_trapframe) = *(p->trapframe); // save the trapframe to restore it in sigreturn
+	    p->trapframe->epc = (uint64)p->alarm_handler; // set pc to address of alarm handler for risc to return to it
+	  }
+	}
+
     yield();
+  }
 
   usertrapret();
 }
@@ -219,3 +241,44 @@ devintr()
   }
 }
 
+int
+page_fault_handler(pagetable_t pagetable, uint64 va)
+{
+  uint64 pa;
+  pte_t *pte;
+  uint flags;
+
+  if (va >= MAXVA)
+  {
+    return -1;
+  }
+
+  va = PGROUNDDOWN(va);
+  pte = walk(pagetable, va, 0);
+  if (pte == 0)
+  {
+    return -1;
+  }
+
+  pa = PTE2PA(*pte);
+
+  flags = PTE_FLAGS(*pte);
+  // cow page
+  if (flags & PTE_C)
+  {
+    char *mem = kalloc();
+    if (mem == 0)
+    {
+      return -1;
+    }
+    memmove(mem, (char*)pa, PGSIZE);
+    kfree((void*)pa);
+    flags = (flags & ~PTE_C) | PTE_W;
+    *pte = PA2PTE((uint64)mem) | flags;
+    return 0;
+  }
+  else
+  {
+    return 0;
+  }
+}

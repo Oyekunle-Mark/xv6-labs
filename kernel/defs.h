@@ -63,6 +63,7 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void 			safe_increase_rc(void* pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -80,6 +81,7 @@ int             pipewrite(struct pipe*, uint64, int);
 void            printf(char*, ...);
 void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
+void			backtrace(void);
 
 // proc.c
 int             cpuid(void);
@@ -147,6 +149,7 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
+int 			page_fault_handler(pagetable_t, uint64);
 
 // uart.c
 void            uartinit(void);
@@ -173,6 +176,8 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+void			vmprint(pagetable_t);
+int 			pgaccess(uint64 base, int len, uint64 mask);
 
 // plic.c
 void            plicinit(void);
