@@ -92,6 +92,7 @@ thread_create(void (*func)())
   }
   t->state = RUNNABLE;
   t->context.ra = (uint64)func; // set the return address to the start of func, thread_switch will jump here
+  // USER STACK GROWS DOWNWARD!!!
   t->context.sp = (uint64)(t->stack + STACK_SIZE); // point register sp to the thread's stack
 }
 
