@@ -1,0 +1,2 @@
+1. Two processes attempt to update the head of a list in a bucket in insert
+2. race condition in insert
