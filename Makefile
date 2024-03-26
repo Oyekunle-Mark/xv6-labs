@@ -257,6 +257,69 @@ UPROGS += \
 	$U/_nettests
 endif
 
+
+ifeq ($(LAB),$(filter $(LAB), lock))
+UPROGS += \
+	$U/_stats
+endif
+
+ifeq ($(LAB),traps)
+UPROGS += \
+	$U/_call\
+	$U/_bttest
+endif
+
+ifeq ($(LAB),lazy)
+UPROGS += \
+	$U/_lazytests
+endif
+
+ifeq ($(LAB),cow)
+UPROGS += \
+	$U/_cowtest
+endif
+
+ifeq ($(LAB),thread)
+UPROGS += \
+	$U/_uthread
+
+$U/uthread_switch.o : $U/uthread_switch.S
+	$(CC) $(CFLAGS) -c -o $U/uthread_switch.o $U/uthread_switch.S
+
+$U/_uthread: $U/uthread.o $U/uthread_switch.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $U/_uthread $U/uthread.o $U/uthread_switch.o $(ULIB)
+	$(OBJDUMP) -S $U/_uthread > $U/uthread.asm
+
+ph: notxv6/ph.c
+	gcc -o ph -g -O2 $(XCFLAGS) notxv6/ph.c -pthread
+
+barrier: notxv6/barrier.c
+	gcc -o barrier -g -O2 $(XCFLAGS) notxv6/barrier.c -pthread
+endif
+
+ifeq ($(LAB),pgtbl)
+UPROGS += \
+	$U/_pgtbltest
+endif
+
+ifeq ($(LAB),lock)
+UPROGS += \
+	$U/_kalloctest\
+	$U/_bcachetest
+endif
+
+ifeq ($(LAB),fs)
+UPROGS += \
+	$U/_bigfile
+endif
+
+
+
+ifeq ($(LAB),net)
+UPROGS += \
+	$U/_nettests
+endif
+
 UEXTRA=
 ifeq ($(LAB),util)
 	UEXTRA += user/xargstest.sh
@@ -269,13 +332,11 @@ fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
 -include kernel/*.d user/*.d
 
 clean:
-	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip \
+	rm -rf *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip \
 	*/*.o */*.d */*.asm */*.sym \
-	$U/initcode $U/initcode.out $K/kernel fs.img \
-	mkfs/mkfs .gdbinit \
-        $U/usys.S \
-	$(UPROGS) \
-	*.zip \
+	$U/initcode $U/initcode.out $U/usys.S $U/_* \
+	$K/kernel \
+	mkfs/mkfs fs.img .gdbinit __pycache__ xv6.out* \
 	ph barrier
 
 # try to generate a unique GDB port
